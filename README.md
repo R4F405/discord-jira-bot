@@ -1,183 +1,187 @@
-# Discord-Jira Bot
+# Discord-Jira Bot 🤖
 
-Un bot de integración entre Discord y Jira que permite consultar información de tickets desde Discord y enviar notificaciones de eventos de Jira a canales de Discord.
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![discord.py](https://img.shields.io/badge/discord.py-library-7289DA.svg)](https://github.com/Rapptz/discord.py)
 
-## Características
+An integration bot for Discord and Jira that allows querying ticket 🎫 information from Discord and sending Jira event notifications to Discord channels.
 
-- **Comandos de Discord**:
-  - `!jira info`: Muestra información sobre los comandos disponibles
-  - `!jira <ticket_id>`: Obtiene información detallada de un ticket específico
-  - `!jira assigned <usuario>`: Lista los tickets asignados a un usuario específico
-  - `!jira finished <usuario>`: Lista los tickets terminados o en QA por un usuario específico
-  - `!jira dev <usuario>`: Lista los tickets en curso para un usuario específico
+## ✨ Features
 
-- **Notificaciones de Jira a Discord**:
-  - Creación de tickets nuevos
-  - Actualizaciones de tickets (cambios de estado, resumen, prioridad)
-  - Comentarios en tickets
-  - Cambios de asignación
-  - Actualizaciones de descripción
-  - Archivos adjuntos
-  - Eliminación de tickets
+- **💻 Discord Commands**:
+  - `!jira info`: Displays information about available commands.
+  - `!jira <ticket_id>`: Retrieves detailed information for a specific ticket.
+  - `!jira assigned <user>`: Lists tickets assigned to a specific user.
+  - `!jira finished <user>`: Lists tickets completed or in QA by a specific user.
+  - `!jira dev <user>`: Lists tickets in progress for a specific user.
 
-## Requisitos
+- **🔔 Jira to Discord Notifications**:
+  - New ticket creation
+  - Ticket updates (status changes, summary, priority)
+  - Comments on tickets
+  - Assignment changes
+  - Description updates
+  - File attachments
+  - Ticket deletion
+
+## ✅ Requirements
 
 - Python 3.8+
-- Una cuenta de Discord
-- Una cuenta de Jira
-- Un servidor Discord donde tengas permisos para añadir bots
+- A Discord account
+- A Jira account
+- A Discord server where you have permissions to add bots
 
-## Dependencias
+## 🔗 Dependencies
 
 - discord.py
 - requests
 - flask
 - python-dotenv
 
-## Instalación
+## 🚀 Installation
 
-1. Clona este repositorio:
-```bash
-git clone https://github.com/tu-usuario/discord-jira-bot.git
-cd discord-jira-bot
+1.  Clone this repository:
+    ```bash
+    git clone https://github.com/R4F405/discord-jira-bot.git
+    cd discord-jira-bot
+    ```
+
+2.  Create a virtual environment and install dependencies:
+    ```bash
+    python -m venv .venv
+    # Windows
+    .venv\Scripts\activate
+    # Linux/MacOS
+    source .venv/bin/activate
+
+    pip install -r requirements.txt
+    ```
+
+3.  Configure environment variables (see "⚙️ Configuration" section).
+
+4.  Run the bot:
+    ```bash
+    python BotJira.py
+    ```
+
+## ⚙️ Configuration
+
+### 1. 📄 Create a .env file
+
+Create a `.env` file in the project root with the following content:
+
+```
+DISCORD_TOKEN=your_discord_token
+JIRA_BASE_URL=https://your-domain.atlassian.net
+JIRA_EMAIL=your_email@example.com
+JIRA_API_TOKEN=your_jira_api_token
+DISCORD_CHANNEL_ID=discord_channel_id
 ```
 
-2. Crea un entorno virtual e instala las dependencias:
-```bash
-python -m venv .venv
-# Windows
-.venv\Scripts\activate
-# Linux/MacOS
-source .venv/bin/activate
+### 2. 🔑 Obtain Discord Token
 
-pip install -r requirements.txt
-```
+To get the Discord token:
 
-3. Configura las variables de entorno (ver sección "Configuración")
+1.  Go to the [Discord Developer Portal](https://discord.com/developers/applications).
+2.  Click on "New Application" and give it a name.
+3.  Navigate to the "Bot" section in the side panel.
+4.  Click "Add Bot".
+5.  Under the bot's name, click "Reset Token" and copy the generated token.
+6.  Ensure you enable "Privileged Gateway Intents":
+    -   MESSAGE CONTENT INTENT
+    -   PRESENCE INTENT
+    -   SERVER MEMBERS INTENT
 
-4. Ejecuta el bot:
-```bash
-python BotJira.py
-```
+### 3. 📨 Invite the Bot to Your Server
 
-## Configuración
+1.  In the [Discord Developer Portal](https://discord.com/developers/applications), select your application.
+2.  Go to "OAuth2" → "URL Generator".
+3.  Select the following permissions:
+    -   Under "SCOPES": `bot`
+    -   Under "BOT PERMISSIONS": Send Messages, Read Message History, etc. (or simply "Administrator" for testing).
+4.  Copy the generated URL, paste it into your browser, and select the server where you want to add the bot.
 
-### 1. Crear un archivo .env
+### 4. 🔑 Configure Jira Tokens
 
-Crea un archivo `.env` en la raíz del proyecto con el siguiente contenido:
+To get the Jira API token:
 
-```
-DISCORD_TOKEN=tu_token_de_discord
-JIRA_BASE_URL=https://tu-dominio.atlassian.net
-JIRA_EMAIL=tu_email@ejemplo.com
-JIRA_API_TOKEN=tu_token_api_jira
-DISCORD_CHANNEL_ID=id_del_canal_discord
-```
+1.  Log in to [Atlassian](https://id.atlassian.com/manage-profile/security/api-tokens).
+2.  Go to "Security" → "API token".
+3.  Click "Create API token".
+4.  Give it a descriptive name (e.g., "Discord Bot") and click "Create".
+5.  Copy the generated token.
 
-### 2. Obtener token de Discord
+### 5. 🆔 Obtain Discord Channel ID
 
-Para obtener el token de Discord:
+1.  In Discord, go to "User Settings" → "Advanced".
+2.  Enable "Developer Mode".
+3.  Right-click on the channel where you want to receive notifications and select "Copy ID".
 
-1. Ve a [Discord Developer Portal](https://discord.com/developers/applications)
-2. Haz clic en "New Application" y dale un nombre
-3. Ve a la sección "Bot" en el panel lateral
-4. Haz clic en "Add Bot"
-5. Bajo el nombre del bot, haz clic en "Reset Token" y copia el token que se genera
-6. Asegúrate de activar los "Privileged Gateway Intents":
-   - MESSAGE CONTENT INTENT
-   - PRESENCE INTENT
-   - SERVER MEMBERS INTENT
+### 6. 🎣 Configure Jira Webhooks
 
-### 3. Invitar el bot a tu servidor
+For Jira to send notifications to your bot:
 
-1. En el [Discord Developer Portal](https://discord.com/developers/applications), selecciona tu aplicación
-2. Ve a "OAuth2" → "URL Generator"
-3. Selecciona los siguientes permisos:
-   - En "SCOPES": bot
-   - En "BOT PERMISSIONS": Send Messages, Read Message History, etc. (o simplemente "Administrator" para pruebas)
-4. Copia la URL generada, pégala en tu navegador y selecciona el servidor donde quieres añadir el bot
+1.  In Jira, go to "Settings" (cog icon) → "System" → "Webhooks" (under "Advanced").
+2.  Click "Create a Webhook".
+3.  Configure the following:
+    -   **Name**: Discord Bot
+    -   **URL**: `http://your-server:8080/webhook` (you will need to expose your server to the internet or use ngrok for testing).
+    -   **Events**: Select the events you want to trigger notifications (Issue created, Comment created, etc.).
 
-### 4. Configurar tokens de Jira
+### 7. 🧪 Configure ngrok for Local Testing
 
-Para obtener el token de API de Jira:
+For local testing, you can use ngrok to expose your Flask server to the internet, allowing Jira to send webhooks to your application:
 
-1. Inicia sesión en [Atlassian](https://id.atlassian.com/manage-profile/security/api-tokens)
-2. Ve a "Security" → "API token"
-3. Haz clic en "Create API token"
-4. Dale un nombre descriptivo (por ejemplo, "Discord Bot") y haz clic en "Create"
-5. Copia el token generado
+1.  Download and install [ngrok](https://ngrok.com/download).
+2.  Create a free ngrok account and follow the instructions to get your authentication token.
+3.  Authenticate your ngrok installation (you only need to do this once):
+    ```bash
+    ngrok config add-authtoken YOUR_NGROK_TOKEN
+    ```
+4.  Start your bot so the Flask server is running on port 8080.
+5.  In another terminal, run ngrok to expose port 8080:
+    ```bash
+    ngrok http 8080
+    ```
+6.  Ngrok will provide you with a public URL (e.g., `https://abc123.ngrok.io`).
+7.  Use this URL in your Jira webhook configuration:
+    `https://abc123.ngrok.io/webhook`
 
-### 5. Obtener ID del canal de Discord
+**Note**: Each time you start ngrok, you will get a different URL, so you will need to update the URL in the Jira webhook configuration if you restart ngrok.
 
-1. En Discord, ve a "Configuración de usuario" → "Avanzado"
-2. Activa "Modo desarrollador"
-3. Haz clic derecho en el canal donde quieres recibir las notificaciones y selecciona "Copiar ID"
+For a production environment, you will need a server with a public IP or a cloud service like Heroku, AWS, etc.
 
-### 6. Configurar Webhooks de Jira
+## 🏗️ Architecture
 
-Para que Jira envíe notificaciones a tu bot:
+The bot operates with two main components:
 
-1. En Jira, ve a "Configuración" → "Sistema" → "Webhooks"
-2. Haz clic en "Crear webhook"
-3. Configura lo siguiente:
-   - **Nombre**: Discord Bot
-   - **URL**: `http://tu-servidor:8080/webhook` (necesitarás exponer tu servidor a internet o usar ngrok para pruebas)
-   - **Eventos**: Selecciona los eventos que quieres que activen notificaciones (Creación de tickets, Comentarios, etc.)
+1.  **Discord Bot**: Listens for commands in Discord and responds with information from Jira.
+2.  **Flask Server**: Receives webhooks from Jira and sends notifications to Discord.
 
-### 7. Configurar ngrok para pruebas locales
+Both components run concurrently using Python threads.
 
-Para pruebas locales, puedes usar ngrok para exponer tu servidor Flask a Internet y permitir que Jira envíe webhooks a tu aplicación:
+## 🎨 Customization
 
-1. Descarga e instala [ngrok](https://ngrok.com/download)
-2. Crea una cuenta gratuita en ngrok y sigue las instrucciones para obtener tu token de autenticación
-3. Autentica tu instalación de ngrok (solo necesitas hacerlo una vez):
-   ```bash
-   ngrok config add-authtoken TU_TOKEN_DE_NGROK
-   ```
-4. Inicia tu bot para que el servidor Flask esté ejecutándose en el puerto 8080
-5. En otra terminal, ejecuta ngrok para exponer el puerto 8080:
-   ```bash
-   ngrok http 8080
-   ```
-6. Ngrok te proporcionará una URL pública (por ejemplo, `https://abc123.ngrok.io`)
-7. Usa esta URL en la configuración del webhook de Jira:
-   `https://abc123.ngrok.io/webhook`
+You can customize:
 
-**Nota**: Cada vez que inicies ngrok obtendrás una URL diferente, así que necesitarás actualizar la URL en la configuración del webhook de Jira si reinicias ngrok.
+-   Response messages in Discord.
+-   Notification format.
+-   Event types that trigger notifications.
 
-Para un entorno de producción, necesitarás un servidor con una IP pública o un servicio en la nube como Heroku, AWS, etc.
+## 🛠️ Troubleshooting
 
-## Arquitectura
+-   **Bot is not responding**: Verify that the Discord token is correct and that the bot has the necessary permissions.
+-   **Not receiving Jira notifications**: Verify that the webhook URL is accessible from the internet.
+-   **Jira authentication error**: Verify that the email and API token are correct.
 
-El bot funciona con dos componentes principales:
+## 🔒 Security
 
-1. **Bot de Discord**: Escucha comandos en Discord y responde con información de Jira
-2. **Servidor Flask**: Recibe webhooks de Jira y envía notificaciones a Discord
+The `.env` file contains sensitive information and should not be shared or uploaded to public repositories. It is included in `.gitignore` by default.
 
-Ambos componentes se ejecutan concurrentemente utilizando hilos de Python.
+## 📜 License
 
-## Personalización
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
-Puedes personalizar:
+## 🤝 Contributing
 
-- Los mensajes de respuesta en Discord
-- El formato de las notificaciones 
-- Los tipos de eventos que desencadenan notificaciones
-
-## Solución de problemas
-
-- **El bot no responde**: Verifica que el token de Discord sea correcto y que el bot tenga los permisos necesarios
-- **No se reciben notificaciones de Jira**: Verifica que la URL del webhook sea accesible desde internet
-- **Error de autenticación con Jira**: Verifica que el email y token de API sean correctos
-
-## Seguridad
-
-El archivo `.env` contiene información sensible y no debe ser compartido ni subido a repositorios públicos. Está incluido en `.gitignore` por defecto.
-
-## Licencia
-
-Este proyecto está bajo la licencia MIT. Ver el archivo [LICENSE](LICENSE) para más detalles.
-
-## Contribuir
-
-Las contribuciones son bienvenidas. Por favor, envía un pull request o abre un issue para discutir los cambios propuestos. 
+Contributions are welcome. Please submit a pull request or open an issue to discuss proposed changes.
