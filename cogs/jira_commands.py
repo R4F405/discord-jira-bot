@@ -111,12 +111,12 @@ class JiraCommands(commands.Cog):
             await interaction.followup.send("Ocurrió un error inesperado al procesar la solicitud.")
 
     # --- Comando: /jira pendientes <usuario> ---
-    @jira.command(name="pendientes", description="Lista tickets en Backlog o Seleccionado para Desarrollo.")
+    @jira.command(name="pendientes", description="Lista tickets en BACKLOG o SELECCIONADO PARA DESARROLLO.")
     @app_commands.describe(usuario="El 'username' o 'displayName' del usuario en Jira")
     async def jira_pendientes(self, interaction: discord.Interaction, usuario: str):
         await interaction.response.defer()
         
-        jql_query = f'assignee = "{usuario}" AND status IN ("BACKLOG", "SELECCIONADO PARA DESARROLLO") ORDER BY updated DESC'
+        jql_query = f'assignee = "{usuario}" AND status IN ("BACKLOG", "SELECTED FOR DEVELOPMENT") ORDER BY updated DESC'
         
         await self._perform_jql_search(
             interaction,
@@ -131,13 +131,13 @@ class JiraCommands(commands.Cog):
     async def jira_encurso(self, interaction: discord.Interaction, usuario: str):
         await interaction.response.defer()
         
-        jql_query = f'assignee = "{usuario}" AND status = "EN CURSO" ORDER BY updated DESC'
+        jql_query = f'assignee = "{usuario}" AND status = "En curso" ORDER BY updated DESC'
         
         await self._perform_jql_search(
             interaction,
             jql_query,
-            f"Tickets En Curso de {usuario}",
-            f"No se encontraron tickets en curso para '{usuario}'."
+            f"Tickets EN CURSO de {usuario}",
+            f"No se encontraron tickets EN CURSO para '{usuario}'."
         )
             
     # --- Comando: /jira bloqueados <usuario> ---
@@ -156,12 +156,12 @@ class JiraCommands(commands.Cog):
         )
 
     # --- Comando: /jira finalizados <usuario> ---
-    @jira.command(name="finalizados", description="Lista tickets en Code Review, QA o Listo.")
+    @jira.command(name="finalizados", description="Lista tickets en CODE REVIEW, QA o LISTO.")
     @app_commands.describe(usuario="El 'username' o 'displayName' del usuario en Jira")
     async def jira_finalizados(self, interaction: discord.Interaction, usuario: str):
         await interaction.response.defer()
         
-        jql_query = f'assignee = "{usuario}" AND status IN ("CODE REVIEW", "QA", "LISTO") ORDER BY updated DESC'
+        jql_query = f'assignee = "{usuario}" AND status IN ("CODE REVIEW", "QA", "Listo") ORDER BY updated DESC'
         
         await self._perform_jql_search(
             interaction,
@@ -180,7 +180,7 @@ class JiraCommands(commands.Cog):
             request_url = f"{JIRA_BASE_URL}/rest/api/3/search/jql"
             request_payload = {
                 "jql": jql_query,
-                "maxResults": 10,
+                "maxResults": 30,
                 "fields": ["summary", "status"]
             }
 
@@ -240,8 +240,8 @@ class JiraCommands(commands.Cog):
         
         embed.description = "\n\n".join(description)
         
-        if len(issues) == 10:
-            embed.set_footer(text="Se muestran los 10 tickets más recientes. Puede haber más resultados.")
+        if len(issues) == 30:
+            embed.set_footer(text="Se muestran los 30 tickets más recientes. Puede haber más resultados.")
             
         return embed
 
