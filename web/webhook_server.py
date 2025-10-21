@@ -4,7 +4,7 @@ from flask import Flask, request, jsonify
 from datetime import datetime
 import discord # Necesario para type hinting (discord.Client)
 
-# --- Configuración del Canal ---
+# --- Configuración del Canal (cargada desde el entorno) ---
 DISCORD_CHANNEL_ID_STR = os.getenv("DISCORD_CHANNEL_ID")
 DISCORD_CHANNEL_ID = 0
 if DISCORD_CHANNEL_ID_STR:
@@ -29,7 +29,7 @@ def create_webhook_app(bot: discord.Client):
     
     app.bot_client = bot
 
-    # --- Función para enviar notificaciones ---
+    # --- Función para enviar notificaciones (Portado de BotJira.py) ---
     async def send_discord_notification(event_type, ticket_key, details=None):
         if not DISCORD_CHANNEL_ID:
             print("Error al notificar: DISCORD_CHANNEL_ID no es válido.")
@@ -45,6 +45,7 @@ def create_webhook_app(bot: discord.Client):
                 ticket_link = f"[{ticket_key}]({JIRA_BASE_URL}/browse/{ticket_key})"
 
             try:
+                # --- Usamos {ticket_link} en lugar de {ticket_key} ---
                 
                 if event_type == "created":
                     await channel.send(f"━━━━━━━━━━━━━━━━━━━━━━━━\n🆕 **Nuevo ticket creado en Jira** 🆕\n**Ticket:** {ticket_link}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
@@ -93,6 +94,15 @@ def create_webhook_app(bot: discord.Client):
                 print("Webhook ignorado (sin clave de issue)")
                 return jsonify({"status": "ignored", "message": "No issue key found"}), 200
 
+            # --- IGNORAR  'BORRADO' DE SUBTAREAS ---
+            is_subtask = issue_data.get("fields", {}).get("issuetype", {}).get("subtask", False)
+            
+            # Comprobamos si es una subtarea Y el evento es 'borrado'
+            if is_subtask and event_type == "issue_deleted":
+                print(f"Webhook ignorado (Evento 'issue_deleted' de subtarea: {ticket_key})")
+                return jsonify({"status": "ignored", "reason": "Ignoring delete events for sub-tasks"}), 200
+            
+            # Este es el usuario que PROVOCÓ el evento (ej. movió el ticket)
             user_name = data.get("user", {}).get("displayName", "Usuario desconocido")
 
             # --- Procesar eventos de comentarios ---
