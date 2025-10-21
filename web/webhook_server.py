@@ -45,7 +45,6 @@ def create_webhook_app(bot: discord.Client):
                 ticket_link = f"[{ticket_key}]({JIRA_BASE_URL}/browse/{ticket_key})"
 
             try:
-                # --- Usamos {ticket_link} en lugar de {ticket_key} ---
                 
                 if event_type == "created":
                     await channel.send(f"━━━━━━━━━━━━━━━━━━━━━━━━\n🆕 **Nuevo ticket creado en Jira** 🆕\n**Ticket:** {ticket_link}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
@@ -101,6 +100,11 @@ def create_webhook_app(bot: discord.Client):
                 comment = data.get("comment", {})
                 comment_text = "Sin contenido"
 
+                # Obtenemos el autor DEL COMENTARIO.
+                comment_author = comment.get("author", {}).get("displayName", "Usuario desconocido")
+
+
+                # Extraer el texto del comentario si está en formato estructurado
                 if isinstance(comment.get("body"), dict) and "content" in comment["body"]:
                     try:
                         comment_text = ""
@@ -115,7 +119,8 @@ def create_webhook_app(bot: discord.Client):
                 else:
                     comment_text = comment.get("body", "Sin contenido")
 
-                details = f"**Comentado por:** {user_name}\n**Comentario:** {comment_text}"
+                # Usamos 'comment_author' en lugar de 'user_name'
+                details = f"**Comentado por:** {comment_author}\n**Comentario:** {comment_text}"
                 
                 asyncio.run_coroutine_threadsafe(
                     send_discord_notification("commented", ticket_key, details=details),
@@ -124,6 +129,7 @@ def create_webhook_app(bot: discord.Client):
                 return jsonify({"status": "success"}), 200
 
             # --- Procesar eventos de actualización de tickets ---
+            # Aquí sí usamos 'user_name' porque es el usuario que actualizó el ticket.
             if "issue_updated" in event_type:
                 changes = data.get("changelog", {}).get("items", [])
                 if not changes:
@@ -185,6 +191,7 @@ def create_webhook_app(bot: discord.Client):
 
             # --- Muestra información cuando se borra un ticket ---
             if "issue_deleted" in event_type:
+                # Aquí 'user_name' es correcto, es quien borró el ticket.
                 usuario = data.get("user", {}).get("displayName", "Usuario desconocido")
                 detalles = f"**Eliminado por:** {usuario}"
 
