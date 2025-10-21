@@ -4,7 +4,7 @@ from flask import Flask, request, jsonify
 from datetime import datetime
 import discord # Necesario para type hinting (discord.Client)
 
-# --- Configuración del Canal (cargada desde el entorno) ---
+# --- Configuración del Canal ---
 DISCORD_CHANNEL_ID_STR = os.getenv("DISCORD_CHANNEL_ID")
 DISCORD_CHANNEL_ID = 0
 if DISCORD_CHANNEL_ID_STR:
@@ -15,6 +15,11 @@ if DISCORD_CHANNEL_ID_STR:
 else:
     print("Error: DISCORD_CHANNEL_ID no está configurado en .env")
 
+# --- Cargar la URL base de Jira ---
+JIRA_BASE_URL = os.getenv("JIRA_BASE_URL")
+if not JIRA_BASE_URL:
+    print("Advertencia: JIRA_BASE_URL no está configurado. Los enlaces en webhooks no funcionarán.")
+
 
 def create_webhook_app(bot: discord.Client):
     """
@@ -22,13 +27,9 @@ def create_webhook_app(bot: discord.Client):
     """
     app = Flask(__name__)
     
-    # Almacenamos la referencia al bot.
-    # NO almacenamos el loop aquí, porque el bot aún no se ha iniciado
-    # y su loop (bot.loop) todavía no es válido.
     app.bot_client = bot
-    # app.async_loop = bot.loop # <-- ESTA LÍNEA SE ELIMINA
 
-    # --- Función para enviar notificaciones (Portado de BotJira.py) ---
+    # --- Función para enviar notificaciones ---
     async def send_discord_notification(event_type, ticket_key, details=None):
         if not DISCORD_CHANNEL_ID:
             print("Error al notificar: DISCORD_CHANNEL_ID no es válido.")
@@ -36,32 +37,40 @@ def create_webhook_app(bot: discord.Client):
 
         channel = app.bot_client.get_channel(DISCORD_CHANNEL_ID)
         if channel:
+            
+            # --- Crear el enlace del ticket ---
+            ticket_link = ticket_key # Fallback si la URL base no está
+            if JIRA_BASE_URL:
+                # Formato Markdown: [BTS-12](https://jira.dominio.com/browse/BTS-12)
+                ticket_link = f"[{ticket_key}]({JIRA_BASE_URL}/browse/{ticket_key})"
+
             try:
-                # Aquí está toda tu lógica de formato de mensajes original
+                # --- Usamos {ticket_link} en lugar de {ticket_key} ---
+                
                 if event_type == "created":
-                    await channel.send(f"━━━━━━━━━━━━━━━━━━━━━━━━\n🆕 **Nuevo ticket creado en Jira** 🆕\n**Ticket:** {ticket_key}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
+                    await channel.send(f"━━━━━━━━━━━━━━━━━━━━━━━━\n🆕 **Nuevo ticket creado en Jira** 🆕\n**Ticket:** {ticket_link}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
                 elif event_type == "updated":
-                    await channel.send(f"━━━━━━━━━━━━━━━━━━━━━━━━\n🔄 **Ticket actualizado en Jira** 🔄\n**Ticket:** {ticket_key}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
+                    await channel.send(f"━━━━━━━━━━━━━━━━━━━━━━━━\n🔄 **Ticket actualizado en Jira** 🔄\n**Ticket:** {ticket_link}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
                 elif event_type == "commented":
-                    await channel.send(f"━━━━━━━━━━━━━━━━━━━━━━━━\n💬 **Nuevo comentario en ticket de Jira** 💬\n**Ticket:** {ticket_key}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
+                    await channel.send(f"━━━━━━━━━━━━━━━━━━━━━━━━\n💬 **Nuevo comentario en ticket de Jira** 💬\n**Ticket:** {ticket_link}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
                 elif event_type == "assigned":
-                    await channel.send(f"━━━━━━━━━━━━━━━━━━━━━━━━\n👤 **Asignación actualizada en ticket de Jira** 👤\n**Ticket:** {ticket_key}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
+                    await channel.send(f"━━━━━━━━━━━━━━━━━━━━━━━━\n👤 **Asignación actualizada en ticket de Jira** 👤\n**Ticket:** {ticket_link}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
                 elif event_type == "description_updated":
                     await channel.send(
-                        f"📝 **━━━━━━━━━━━━━━━━━━━━━━━━\nDescripción actualizada en ticket de Jira** 📝\n**Ticket:** {ticket_key}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
+                        f"📝 **━━━━━━━━━━━━━━━━━━━━━━━━\nDescripción actualizada en ticket de Jira** 📝\n**Ticket:** {ticket_link}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
                 elif event_type == "summary_updated":
-                    await channel.send(f"━━━━━━━━━━━━━━━━━━━━━━━━\n📋 **Resumen actualizado en ticket de Jira** 📋\n**Ticket:** {ticket_key}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
+                    await channel.send(f"━━━━━━━━━━━━━━━━━━━━━━━━\n📋 **Resumen actualizado en ticket de Jira** 📋\n**Ticket:** {ticket_link}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
                 elif event_type == "deleted":
-                    await channel.send(f"━━━━━━━━━━━━━━━━━━━━━━━━\n❌ **Ticket eliminado en Jira** ❌\n**Ticket:** {ticket_key}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
+                    await channel.send(f"━━━━━━━━━━━━━━━━━━━━━━━━\n❌ **Ticket eliminado en Jira** ❌\n**Ticket:** {ticket_link}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
                 elif event_type == "priority_updated":
                     await channel.send(
-                        f"━━━━━━━━━━━━━━━━━━━━━━━━\n⚠️ **Prioridad actualizada en ticket de Jira** ⚠️\n**Ticket:** {ticket_key}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
+                        f"━━━━━━━━━━━━━━━━━━━━━━━━\n⚠️ **Prioridad actualizada en ticket de Jira** ⚠️\n**Ticket:** {ticket_link}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
                 elif event_type == "attachment_added":
                     await channel.send(
-                        f"━━━━━━━━━━━━━━━━━━━━━━━━\n📎 **Archivo adjunto añadido en ticket de Jira** 📎\n**Ticket:** {ticket_key}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
+                        f"━━━━━━━━━━━━━━━━━━━━━━━━\n📎 **Archivo adjunto añadido en ticket de Jira** 📎\n**Ticket:** {ticket_link}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
                 else:
                     # Fallback para eventos no manejados explícitamente
-                    await channel.send(f"🔔 **Evento de Jira ({event_type})**\n**Ticket:** {ticket_key}\n{details}")
+                    await channel.send(f"🔔 **Evento de Jira ({event_type})**\n**Ticket:** {ticket_link}\n{details}")
             except Exception as e:
                 print(f"Error al enviar mensaje a Discord: {e}")
         else:
@@ -74,9 +83,6 @@ def create_webhook_app(bot: discord.Client):
             print("✅ Webhook recibido desde Jira")
             data = request.json
 
-            # --- OBTENER EL LOOP VÁLIDO ---
-            # Obtenemos el loop del bot *ahora*, que ya está en ejecución
-            # (a diferencia de cuando se creó la app).
             valid_loop = app.bot_client.loop
 
             # Extraer información relevante del evento
@@ -85,7 +91,6 @@ def create_webhook_app(bot: discord.Client):
             ticket_key = issue_data.get("key")
 
             if not ticket_key:
-                # A veces, los webhooks son sobre proyectos, no issues
                 print("Webhook ignorado (sin clave de issue)")
                 return jsonify({"status": "ignored", "message": "No issue key found"}), 200
 
@@ -96,7 +101,6 @@ def create_webhook_app(bot: discord.Client):
                 comment = data.get("comment", {})
                 comment_text = "Sin contenido"
 
-                # Extraer el texto del comentario si está en formato estructurado
                 if isinstance(comment.get("body"), dict) and "content" in comment["body"]:
                     try:
                         comment_text = ""
@@ -113,11 +117,9 @@ def create_webhook_app(bot: discord.Client):
 
                 details = f"**Comentado por:** {user_name}\n**Comentario:** {comment_text}"
                 
-                # ¡IMPORTANTE! Usamos 'run_coroutine_threadsafe' para llamar a
-                # nuestra función async desde este hilo síncrono de Flask.
                 asyncio.run_coroutine_threadsafe(
                     send_discord_notification("commented", ticket_key, details=details),
-                    valid_loop # <-- USAR EL LOOP VÁLIDO
+                    valid_loop
                 )
                 return jsonify({"status": "success"}), 200
 
@@ -143,11 +145,9 @@ def create_webhook_app(bot: discord.Client):
                         "attachment": "attachment_added"
                     }
                     
-                    # Usamos 'get' para manejar campos que no mapeamos
                     mapped_event = event_map.get(field)
                     
                     if mapped_event:
-                        # Si es un campo especial, ajustamos los detalles
                         if field == "description":
                             details = f"**Descripción actualizada por:** {user_name}"
                         elif field == "attachment":
@@ -155,7 +155,7 @@ def create_webhook_app(bot: discord.Client):
                         
                         asyncio.run_coroutine_threadsafe(
                             send_discord_notification(mapped_event, ticket_key, details=details),
-                            valid_loop # <-- USAR EL LOOP VÁLIDO
+                            valid_loop
                         )
 
                 return jsonify({"status": "success"}), 200
@@ -179,23 +179,21 @@ def create_webhook_app(bot: discord.Client):
 
                 asyncio.run_coroutine_threadsafe(
                     send_discord_notification("created", ticket_key, details=detalles),
-                    valid_loop # <-- USAR EL LOOP VÁLIDO
+                    valid_loop
                 )
                 return jsonify({"status": "success"}), 200
 
             # --- Muestra información cuando se borra un ticket ---
             if "issue_deleted" in event_type:
                 usuario = data.get("user", {}).get("displayName", "Usuario desconocido")
-                # El issue completo no suele venir en 'deleted', así que somos genéricos
                 detalles = f"**Eliminado por:** {usuario}"
 
                 asyncio.run_coroutine_threadsafe(
                     send_discord_notification("deleted", ticket_key, details=detalles),
-                    valid_loop # <-- USAR EL LOOP VÁLIDO
+                    valid_loop
                 )
                 return jsonify({"status": "success"}), 200
             
-            # Si llegamos aquí, es un evento que no manejamos
             print(f"Webhook ignorado (tipo de evento no manejado: {event_type})")
             return jsonify({"status": "ignored", "event": event_type}), 200
         
