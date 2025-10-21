@@ -4,17 +4,18 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 
+# --- Cargar configuración ---
+load_dotenv()
+
 # Importa el creador de la app Flask desde nuestro módulo web
 from web.webhook_server import create_webhook_app
 
-# --- Cargar configuración ---
-load_dotenv()
+# --- Configuración del Bot ---
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 if not DISCORD_TOKEN:
     print("Error: DISCORD_TOKEN no encontrado. Asegúrate de tener un .env válido.")
     exit()
 
-# --- Configuración del Bot ---
 # Definimos los 'intents' (intenciones) básicos.
 intents = discord.Intents.default()
 

@@ -22,10 +22,11 @@ def create_webhook_app(bot: discord.Client):
     """
     app = Flask(__name__)
     
-    # Almacenamos la referencia al bot y su loop de asyncio
-    # para poder llamarlo de forma segura desde el hilo de Flask.
+    # Almacenamos la referencia al bot.
+    # NO almacenamos el loop aquí, porque el bot aún no se ha iniciado
+    # y su loop (bot.loop) todavía no es válido.
     app.bot_client = bot
-    app.async_loop = bot.loop
+    # app.async_loop = bot.loop # <-- ESTA LÍNEA SE ELIMINA
 
     # --- Función para enviar notificaciones (Portado de BotJira.py) ---
     async def send_discord_notification(event_type, ticket_key, details=None):
@@ -73,6 +74,11 @@ def create_webhook_app(bot: discord.Client):
             print("✅ Webhook recibido desde Jira")
             data = request.json
 
+            # --- OBTENER EL LOOP VÁLIDO ---
+            # Obtenemos el loop del bot *ahora*, que ya está en ejecución
+            # (a diferencia de cuando se creó la app).
+            valid_loop = app.bot_client.loop
+
             # Extraer información relevante del evento
             event_type = data.get("webhookEvent")
             issue_data = data.get("issue", {})
@@ -111,7 +117,7 @@ def create_webhook_app(bot: discord.Client):
                 # nuestra función async desde este hilo síncrono de Flask.
                 asyncio.run_coroutine_threadsafe(
                     send_discord_notification("commented", ticket_key, details=details),
-                    app.async_loop
+                    valid_loop # <-- USAR EL LOOP VÁLIDO
                 )
                 return jsonify({"status": "success"}), 200
 
@@ -149,7 +155,7 @@ def create_webhook_app(bot: discord.Client):
                         
                         asyncio.run_coroutine_threadsafe(
                             send_discord_notification(mapped_event, ticket_key, details=details),
-                            app.async_loop
+                            valid_loop # <-- USAR EL LOOP VÁLIDO
                         )
 
                 return jsonify({"status": "success"}), 200
@@ -173,7 +179,7 @@ def create_webhook_app(bot: discord.Client):
 
                 asyncio.run_coroutine_threadsafe(
                     send_discord_notification("created", ticket_key, details=detalles),
-                    app.async_loop
+                    valid_loop # <-- USAR EL LOOP VÁLIDO
                 )
                 return jsonify({"status": "success"}), 200
 
@@ -185,7 +191,7 @@ def create_webhook_app(bot: discord.Client):
 
                 asyncio.run_coroutine_threadsafe(
                     send_discord_notification("deleted", ticket_key, details=detalles),
-                    app.async_loop
+                    valid_loop # <-- USAR EL LOOP VÁLIDO
                 )
                 return jsonify({"status": "success"}), 200
             
