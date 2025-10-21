@@ -119,7 +119,7 @@ async def handle_jira_command(message):
 
 # Función para manejar el comando !jira assigned usuario
 async def handle_jira_assigned_command(message):
-    parts = message.content.split(' ', 2)  # Dividir en máximo 3 partes
+    parts = message.content.split(' ', 2)
     if len(parts) < 3:
         await message.reply("Por favor, proporciona el nombre de usuario de Jira. Ejemplo: `!jira assigned username`")
         return
@@ -127,16 +127,20 @@ async def handle_jira_assigned_command(message):
     username = parts[2]
 
     try:
-        # Construir la consulta JQL para buscar tickets asignados al usuario
-        # Usando operador '=' en lugar de '~' para mayor compatibilidad
         jql_query = f'assignee = "{username}" AND resolution = Unresolved ORDER BY updated DESC'
+        
+        request_url = f"{JIRA_BASE_URL}/rest/api/3/search/jql"
+        request_payload = {
+            "jql": jql_query,
+            "maxResults": 10,
+            "fields": ["summary", "status"]  # <-- ¡AQUÍ ESTÁ LA MAGIA!
+        }
 
-        # Hacer la solicitud a la API de Jira
-        response = requests.get(
-            f"{JIRA_BASE_URL}/rest/api/3/search",
+        response = requests.post(
+            request_url,
             auth=JIRA_AUTH,
-            params={"jql": jql_query, "maxResults": 10},
-            headers={"Content-Type": "application/json"}
+            headers={"Content-Type": "application/json"},
+            json=request_payload
         )
 
         if response.status_code == 200:
@@ -147,26 +151,28 @@ async def handle_jira_assigned_command(message):
                 await message.reply(f"No se encontraron tickets asignados a '{username}'.")
                 return
 
-            # Crear un resumen de los tickets encontrados
             response_message = f"**Tickets asignados a {username}:**\n\n"
 
             for issue in issues:
-                key = issue.get("key")
-                summary = issue["fields"].get("summary", "Sin resumen")
-                status = issue["fields"]["status"].get("name", "Sin estado")
-
+                key = issue.get("key", "SIN-CLAVE") # 'key' casi siempre viene, pero lo dejamos seguro
+                fields = issue.get("fields", {})
+                
+                summary = fields.get("summary", "Sin resumen")
+                status_obj = fields.get("status")
+                status = status_obj.get("name", "Sin estado") if status_obj else "Sin estado"
+                
                 response_message += f"**{key}** - {summary} (Estado: {status})\n"
 
-            if len(issues) == 30:
-                response_message += "\n*Se muestran los 30 tickets más recientes de " + username +". Puede haber más resultados.*"
+            if len(issues) == 10:
+                response_message += "\n*Se muestran los 10 tickets más recientes de " + username +". Puede haber más resultados.*"
 
             await message.reply(response_message)
         elif response.status_code == 400:
-            # Posible error en la consulta JQL
             error_data = response.json()
             error_message = error_data.get("errorMessages", ["Error desconocido"])[0]
             await message.reply(f"Error en la consulta: {error_message}")
         else:
+            print(f"[LOG] Error en assigned (no 200/400): {response.text}")
             await message.reply(f"No se pudo realizar la búsqueda. Código de estado: {response.status_code}")
 
     except Exception as e:
@@ -175,7 +181,7 @@ async def handle_jira_assigned_command(message):
 
 # Función para manejar el comando !jira finished usuario
 async def handle_jira_finished_command(message):
-    parts = message.content.split(' ', 2)  # Dividir en máximo 3 partes
+    parts = message.content.split(' ', 2)
     if len(parts) < 3:
         await message.reply("Por favor, proporciona el nombre de usuario de Jira. Ejemplo: `!jira finished username`")
         return
@@ -183,15 +189,20 @@ async def handle_jira_finished_command(message):
     username = parts[2]
 
     try:
-        # Modificar la consulta JQL para incluir tickets en Done y en QA
         jql_query = f'assignee = "{username}" AND status IN ("Done", "QA") ORDER BY updated DESC'
+        
+        request_url = f"{JIRA_BASE_URL}/rest/api/3/search/jql"
+        request_payload = {
+            "jql": jql_query,
+            "maxResults": 10,
+            "fields": ["summary", "status", "resolutiondate"] # <-- ¡AQUÍ ESTÁ LA MAGIA!
+        }
 
-        # Hacer la solicitud a la API de Jira
-        response = requests.get(
-            f"{JIRA_BASE_URL}/rest/api/3/search",
+        response = requests.post(
+            request_url,
             auth=JIRA_AUTH,
-            params={"jql": jql_query, "maxResults": 10},
-            headers={"Content-Type": "application/json"}
+            headers={"Content-Type": "application/json"},
+            json=request_payload
         )
 
         if response.status_code == 200:
@@ -202,38 +213,46 @@ async def handle_jira_finished_command(message):
                 await message.reply(f"No se encontraron tickets terminados o en QA por '{username}'.")
                 return
 
-            # Crear un resumen de los tickets encontrados
             response_message = f"**Tickets terminados o en QA por {username}:**\n\n"
 
             for issue in issues:
-                key = issue.get("key")
-                summary = issue["fields"].get("summary", "Sin resumen")
-                status = issue["fields"]["status"].get("name", "Sin estado")
-                resolved_date = issue["fields"].get("resolutiondate", "Sin fecha")
+                key = issue.get("key", "SIN-CLAVE")
+                fields = issue.get("fields", {})
 
-                # Formatear fecha de resolución si existe
-                if resolved_date and resolved_date != "Sin fecha":
+                summary = fields.get("summary", "Sin resumen")
+                
+                status_obj = fields.get("status")
+                status = status_obj.get("name", "Sin estado") if status_obj else "Sin estado"
+                
+                resolved_date = fields.get("resolutiondate")
+                date_info = ""
+                
+                if resolved_date:
                     try:
-                        resolved_date = datetime.strptime(resolved_date, "%Y-%m-%dT%H:%M:%S.%f%z").strftime("%d/%m/%Y")
-                        date_info = f" (Completado: {resolved_date})"
-                    except:
-                        date_info = ""
-                else:
-                    date_info = ""
+                        parsed_date = datetime.strptime(resolved_date, "%Y-%m-%dT%H:%M:%S.%f%z")
+                    except ValueError:
+                        try:
+                            parsed_date = datetime.strptime(resolved_date, "%Y-%m-%dT%H:%M:%S%z")
+                        except Exception as date_e:
+                            print(f"Error al parsear fecha: {date_e} - Valor: {resolved_date}")
+                            parsed_date = None
 
-                # Incluir estado en la respuesta para distinguir entre QA y Done
+                    if parsed_date:
+                        date_info = f" (Completado: {parsed_date.strftime('%d/%m/%Y')})"
+
                 response_message += f"**{key}** - {summary} (Estado: {status}){date_info}\n"
 
             if len(issues) == 10:
                 response_message += "\n*Se muestran los 10 tickets más recientes terminados o en QA por " + username + ". Puede haber más resultados.*"
 
             await message.reply(response_message)
+        
         elif response.status_code == 400:
-            # Posible error en la consulta JQL
             error_data = response.json()
             error_message = error_data.get("errorMessages", ["Error desconocido"])[0]
             await message.reply(f"Error en la consulta: {error_message}")
         else:
+            print(f"[LOG] Error en finished (no 200/400): {response.text}")
             await message.reply(f"No se pudo realizar la búsqueda. Código de estado: {response.status_code}")
 
     except Exception as e:
@@ -242,7 +261,7 @@ async def handle_jira_finished_command(message):
 
 # Función para manejar el comando !jira dev usuario
 async def handle_jira_dev_command(message):
-    parts = message.content.split(' ', 2)  # Dividir en máximo 3 partes
+    parts = message.content.split(' ', 2)
     if len(parts) < 3:
         await message.reply("Por favor, proporciona el nombre de usuario de Jira. Ejemplo: `!jira dev username`")
         return
@@ -250,15 +269,20 @@ async def handle_jira_dev_command(message):
     username = parts[2]
 
     try:
-        # Construir la consulta JQL para buscar tickets en la columna "En curso" asignados al usuario
         jql_query = f'assignee = "{username}" AND status = "In Progress" ORDER BY updated DESC'
-
-        # Hacer la solicitud a la API de Jira
-        response = requests.get(
-            f"{JIRA_BASE_URL}/rest/api/3/search",
+        
+        request_url = f"{JIRA_BASE_URL}/rest/api/3/search/jql"
+        request_payload = {
+            "jql": jql_query,
+            "maxResults": 10,
+            "fields": ["summary", "status"] # <-- ¡AQUÍ ESTÁ LA MAGIA!
+        }
+        
+        response = requests.post(
+            request_url,
             auth=JIRA_AUTH,
-            params={"jql": jql_query, "maxResults": 10},
-            headers={"Content-Type": "application/json"}
+            headers={"Content-Type": "application/json"},
+            json=request_payload
         )
 
         if response.status_code == 200:
@@ -269,13 +293,15 @@ async def handle_jira_dev_command(message):
                 await message.reply(f"No se encontraron tickets en curso para '{username}'.")
                 return
 
-            # Crear un resumen de los tickets encontrados
             response_message = f"**Tickets en curso para {username}:**\n\n"
 
             for issue in issues:
-                key = issue.get("key")
-                summary = issue["fields"].get("summary", "Sin resumen")
-                status = issue["fields"]["status"].get("name", "Sin estado")
+                key = issue.get("key", "SIN-CLAVE")
+                fields = issue.get("fields", {})
+
+                summary = fields.get("summary", "Sin resumen")
+                status_obj = fields.get("status")
+                status = status_obj.get("name", "Sin estado") if status_obj else "Sin estado"
 
                 response_message += f"**{key}** - {summary} (Estado: {status})\n"
 
@@ -284,11 +310,11 @@ async def handle_jira_dev_command(message):
 
             await message.reply(response_message)
         elif response.status_code == 400:
-            # Posible error en la consulta JQL
             error_data = response.json()
             error_message = error_data.get("errorMessages", ["Error desconocido"])[0]
             await message.reply(f"Error en la consulta: {error_message}")
         else:
+            print(f"[LOG] Error en dev (no 200/400): {response.text}")
             await message.reply(f"No se pudo realizar la búsqueda. Código de estado: {response.status_code}")
 
     except Exception as e:
