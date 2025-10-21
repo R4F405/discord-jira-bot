@@ -39,7 +39,7 @@ def create_webhook_app(bot: discord.Client):
         if channel:
             
             # --- Determinar la etiqueta ---
-            label = "Subtarea" if is_subtask else "Ticket"
+            label = "Subtarea" if is_subtask else "Actividad"
 
             # --- Crear el enlace del ticket ---
             ticket_link = ticket_key # Fallback si la URL base no está
