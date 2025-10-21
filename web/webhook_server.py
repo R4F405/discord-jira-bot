@@ -30,7 +30,7 @@ def create_webhook_app(bot: discord.Client):
     app.bot_client = bot
 
     # --- Función para enviar notificaciones (Portado de BotJira.py) ---
-    async def send_discord_notification(event_type, ticket_key, details=None):
+    async def send_discord_notification(event_type, ticket_key, details=None, is_subtask=False):
         if not DISCORD_CHANNEL_ID:
             print("Error al notificar: DISCORD_CHANNEL_ID no es válido.")
             return
@@ -38,6 +38,9 @@ def create_webhook_app(bot: discord.Client):
         channel = app.bot_client.get_channel(DISCORD_CHANNEL_ID)
         if channel:
             
+            # --- Determinar la etiqueta ---
+            label = "Subtarea" if is_subtask else "Ticket"
+
             # --- Crear el enlace del ticket ---
             ticket_link = ticket_key # Fallback si la URL base no está
             if JIRA_BASE_URL:
@@ -45,32 +48,32 @@ def create_webhook_app(bot: discord.Client):
                 ticket_link = f"[{ticket_key}]({JIRA_BASE_URL}/browse/{ticket_key})"
 
             try:
-                # --- Usamos {ticket_link} en lugar de {ticket_key} ---
+                # --- Usamos {label} en lugar de "Ticket" ---
                 
                 if event_type == "created":
-                    await channel.send(f"━━━━━━━━━━━━━━━━━━━━━━━━\n🆕 **Nuevo ticket creado en Jira** 🆕\n**Ticket:** {ticket_link}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
+                    await channel.send(f"━━━━━━━━━━━━━━━━━━━━━━━━\n🆕 **Nueva {label.lower()} creada en Jira** 🆕\n**{label}:** {ticket_link}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
                 elif event_type == "updated":
-                    await channel.send(f"━━━━━━━━━━━━━━━━━━━━━━━━\n🔄 **Ticket actualizado en Jira** 🔄\n**Ticket:** {ticket_link}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
+                    await channel.send(f"━━━━━━━━━━━━━━━━━━━━━━━━\n🔄 **{label} actualizada en Jira** 🔄\n**{label}:** {ticket_link}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
                 elif event_type == "commented":
-                    await channel.send(f"━━━━━━━━━━━━━━━━━━━━━━━━\n💬 **Nuevo comentario en ticket de Jira** 💬\n**Ticket:** {ticket_link}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
+                    await channel.send(f"━━━━━━━━━━━━━━━━━━━━━━━━\n💬 **Nuevo comentario en {label.lower()} de Jira** 💬\n**{label}:** {ticket_link}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
                 elif event_type == "assigned":
-                    await channel.send(f"━━━━━━━━━━━━━━━━━━━━━━━━\n👤 **Asignación actualizada en ticket de Jira** 👤\n**Ticket:** {ticket_link}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
+                    await channel.send(f"━━━━━━━━━━━━━━━━━━━━━━━━\n👤 **Asignación actualizada en {label.lower()} de Jira** 👤\n**{label}:** {ticket_link}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
                 elif event_type == "description_updated":
                     await channel.send(
-                        f"📝 **━━━━━━━━━━━━━━━━━━━━━━━━\nDescripción actualizada en ticket de Jira** 📝\n**Ticket:** {ticket_link}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
+                        f"📝 **━━━━━━━━━━━━━━━━━━━━━━━━\nDescripción actualizada en {label.lower()} de Jira** 📝\n**{label}:** {ticket_link}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
                 elif event_type == "summary_updated":
-                    await channel.send(f"━━━━━━━━━━━━━━━━━━━━━━━━\n📋 **Resumen actualizado en ticket de Jira** 📋\n**Ticket:** {ticket_link}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
+                    await channel.send(f"━━━━━━━━━━━━━━━━━━━━━━━━\n📋 **Resumen actualizado en {label.lower()} de Jira** 📋\n**{label}:** {ticket_link}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
                 elif event_type == "deleted":
-                    await channel.send(f"━━━━━━━━━━━━━━━━━━━━━━━━\n❌ **Ticket eliminado en Jira** ❌\n**Ticket:** {ticket_link}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
+                    await channel.send(f"━━━━━━━━━━━━━━━━━━━━━━━━\n❌ **{label} eliminada en Jira** ❌\n**{label}:** {ticket_link}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
                 elif event_type == "priority_updated":
                     await channel.send(
-                        f"━━━━━━━━━━━━━━━━━━━━━━━━\n⚠️ **Prioridad actualizada en ticket de Jira** ⚠️\n**Ticket:** {ticket_link}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
+                        f"━━━━━━━━━━━━━━━━━━━━━━━━\n⚠️ **Prioridad actualizada en {label.lower()} de Jira** ⚠️\n**{label}:** {ticket_link}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
                 elif event_type == "attachment_added":
                     await channel.send(
-                        f"━━━━━━━━━━━━━━━━━━━━━━━━\n📎 **Archivo adjunto añadido en ticket de Jira** 📎\n**Ticket:** {ticket_link}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
+                        f"━━━━━━━━━━━━━━━━━━━━━━━━\n📎 **Archivo adjunto añadido en {label.lower()} de Jira** 📎\n**{label}:** {ticket_link}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
                 else:
                     # Fallback para eventos no manejados explícitamente
-                    await channel.send(f"🔔 **Evento de Jira ({event_type})**\n**Ticket:** {ticket_link}\n{details}")
+                    await channel.send(f"🔔 **Evento de Jira ({event_type})**\n**{label}:** {ticket_link}\n{details}")
             except Exception as e:
                 print(f"Error al enviar mensaje a Discord: {e}")
         else:
@@ -110,11 +113,8 @@ def create_webhook_app(bot: discord.Client):
                 comment = data.get("comment", {})
                 comment_text = "Sin contenido"
 
-                # Obtenemos el autor DEL COMENTARIO.
                 comment_author = comment.get("author", {}).get("displayName", "Usuario desconocido")
 
-
-                # Extraer el texto del comentario si está en formato estructurado
                 if isinstance(comment.get("body"), dict) and "content" in comment["body"]:
                     try:
                         comment_text = ""
@@ -133,13 +133,12 @@ def create_webhook_app(bot: discord.Client):
                 details = f"**Comentado por:** {comment_author}\n**Comentario:** {comment_text}"
                 
                 asyncio.run_coroutine_threadsafe(
-                    send_discord_notification("commented", ticket_key, details=details),
+                    send_discord_notification("commented", ticket_key, details=details, is_subtask=is_subtask),
                     valid_loop
                 )
                 return jsonify({"status": "success"}), 200
 
             # --- Procesar eventos de actualización de tickets ---
-            # Aquí sí usamos 'user_name' porque es el usuario que actualizó el ticket.
             if "issue_updated" in event_type:
                 changes = data.get("changelog", {}).get("items", [])
                 if not changes:
@@ -170,7 +169,7 @@ def create_webhook_app(bot: discord.Client):
                             details = f"**Archivo adjunto añadido por:** {user_name}\n**Archivo:** {to_value}"
                         
                         asyncio.run_coroutine_threadsafe(
-                            send_discord_notification(mapped_event, ticket_key, details=details),
+                            send_discord_notification(mapped_event, ticket_key, details=details, is_subtask=is_subtask),
                             valid_loop
                         )
 
@@ -194,19 +193,18 @@ def create_webhook_app(bot: discord.Client):
                 )
 
                 asyncio.run_coroutine_threadsafe(
-                    send_discord_notification("created", ticket_key, details=detalles),
+                    send_discord_notification("created", ticket_key, details=detalles, is_subtask=is_subtask),
                     valid_loop
                 )
                 return jsonify({"status": "success"}), 200
 
             # --- Muestra información cuando se borra un ticket ---
             if "issue_deleted" in event_type:
-                # Aquí 'user_name' es correcto, es quien borró el ticket.
                 usuario = data.get("user", {}).get("displayName", "Usuario desconocido")
                 detalles = f"**Eliminado por:** {usuario}"
 
                 asyncio.run_coroutine_threadsafe(
-                    send_discord_notification("deleted", ticket_key, details=detalles),
+                    send_discord_notification("deleted", ticket_key, details=detalles, is_subtask=is_subtask),
                     valid_loop
                 )
                 return jsonify({"status": "success"}), 200
