@@ -3,6 +3,8 @@ import asyncio
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
+from web.webhook_server import create_webhook_app
+import waitress
 
 # --- Cargar configuración ---
 load_dotenv()
@@ -75,10 +77,10 @@ async def run_flask_app():
     asyncio para no bloquear el hilo principal del bot.
     """
     try:
-        # Usamos lambda para poder llamar a app.run() con sus argumentos
+        # Usamos waitress.serve en lugar de flask_app.run para producción
         await bot.loop.run_in_executor(
             None, 
-            lambda: flask_app.run(port=8080, host='0.0.0.0', use_reloader=False)
+            lambda: waitress.serve(flask_app, host='0.0.0.0', port=8080)
         )
     except Exception as e:
         print(f"Error al iniciar el servidor Flask: {e}")
