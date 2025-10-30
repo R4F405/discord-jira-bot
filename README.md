@@ -34,10 +34,11 @@ Un bot de integración para Discord y Jira que permite consultar información de
 
 ## 🔗 Dependencias
 
-- `discord.py`
-- `flask`
-- `python-dotenv`
-- `httpx`
+- `discord.py` - Biblioteca para interactuar con la API de Discord
+- `flask` - Framework web para recibir webhooks de Jira
+- `python-dotenv` - Gestión de variables de entorno
+- `httpx` - Cliente HTTP asíncrono para consultas a Jira API
+- `waitress` - Servidor WSGI para producción
 
 ## 🚀 Instalación
 
@@ -122,19 +123,21 @@ Para que Jira envíe notificaciones a tu bot:
 2.  Haz clic en "Create a Webhook".
 3.  Configura lo siguiente:
     -   **Name**: Discord Bot
-    -   **URL**: `http://tu-servidor-publico:8080/webhook`. (Necesitarás exponer tu servidor a internet).
+    -   **URL**: `http://tu-servidor-publico:8080/webhook` (El bot usa Waitress en el puerto 8080 por defecto).
     -   **Events**: Selecciona los eventos que quieres que activen notificaciones (Issue created, Comment created, etc.).
+
+**Nota**: Para entornos de producción, se recomienda usar HTTPS y configurar un proxy reverso (nginx, Apache) delante de Waitress.
 
 ### 7. 🧪 Configurar ngrok para Pruebas Locales
 
-Para pruebas locales, puedes usar [ngrok](https://ngrok.com/download) para exponer tu servidor Flask (que se ejecuta en el puerto 8080) a internet:
+Para pruebas locales, puedes usar [ngrok](https://ngrok.com/download) para exponer tu servidor (que se ejecuta en el puerto 8080 con Waitress) a internet:
 
 1.  Descarga e instala ngrok.
 2.  Autentica tu cliente de ngrok (solo se hace una vez):
     ```bash
     ngrok config add-authtoken TU_TOKEN_DE_NGROK
     ```
-3.  Inicia tu bot (`python bot.py`) para que el servidor Flask esté corriendo en el puerto 8080.
+3.  Inicia tu bot (`python bot.py`) para que el servidor esté corriendo en el puerto 8080.
 4.  En otra terminal, ejecuta ngrok para exponer el puerto 8080:
     ```bash
     ngrok http 8080
@@ -145,14 +148,59 @@ Para pruebas locales, puedes usar [ngrok](https://ngrok.com/download) para expon
 
 **Nota**: Cada vez que reinicies ngrok, la URL cambiará, por lo que deberás actualizarla en Jira.
 
+## 🚀 Despliegue en Producción
+
+El bot utiliza **Waitress** como servidor WSGI de producción, lo que proporciona mejor rendimiento y estabilidad que el servidor de desarrollo de Flask.
+
+### Configuración Recomendada
+
+1.  **Servidor dedicado o VPS**: Despliega el bot en un servidor con IP pública.
+2.  **Proxy Reverso**: Configura nginx o Apache como proxy reverso delante de Waitress:
+
+    ```nginx
+    # Ejemplo de configuración nginx
+    server {
+        listen 80;
+        server_name tu-dominio.com;
+
+        location /webhook {
+            proxy_pass http://127.0.0.1:8080;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+    }
+    ```
+
+3.  **HTTPS**: Usa Let's Encrypt (certbot) para habilitar HTTPS y asegurar las comunicaciones.
+4.  **Servicio systemd** (Linux): Configura el bot como servicio para que se inicie automáticamente:
+
+    ```ini
+    [Unit]
+    Description=Discord Jira Bot
+    After=network.target
+
+    [Service]
+    Type=simple
+    User=tu-usuario
+    WorkingDirectory=/ruta/al/proyecto
+    ExecStart=/ruta/al/proyecto/.venv/bin/python bot.py
+    Restart=always
+
+    [Install]
+    WantedBy=multi-user.target
+    ```
+
+5.  **Variables de entorno**: Asegúrate de que el archivo `.env` esté correctamente configurado en el servidor de producción.
+
 ## 🏗️ Arquitectura
 
 El bot opera con dos componentes principales que se ejecutan concurrentemente usando `asyncio`:
 
 1.  **Bot de Discord (discord.py)**: Se conecta a Discord, carga el Cog de comandos (`cogs/jira_commands.py`) y sincroniza los Comandos de Aplicación (/).
-2.  **Servidor Web (Flask)**: Recibe los webhooks de Jira en la ruta `/webhook`. Utiliza `asyncio.run_coroutine_threadsafe` para enviar notificaciones al canal de Discord de forma segura desde el hilo de Flask.
+2.  **Servidor Web (Flask + Waitress)**: Recibe los webhooks de Jira en la ruta `/webhook`. Utiliza **Waitress** como servidor WSGI de producción para manejar las peticiones de forma eficiente y segura. El servidor emplea `asyncio.run_coroutine_threadsafe` para enviar notificaciones al canal de Discord de forma segura desde el hilo de Flask.
 
-El archivo principal `bot.py` se encarga de iniciar y gestionar ambas tareas.
+El archivo principal `bot.py` se encarga de iniciar y gestionar ambas tareas de forma concurrente.
 
 ## 🛠️ Troubleshooting
 
@@ -160,7 +208,9 @@ El archivo principal `bot.py` se encarga de iniciar y gestionar ambas tareas.
 -   **No se reciben notificaciones de Jira**:
     -   Verifica que la URL del webhook en Jira sea correcta y esté accesible desde internet (puedes usar ngrok para probar).
     -   Asegúrate de que `DISCORD_CHANNEL_ID` en tu `.env` sea correcto.
+    -   Verifica que el servidor Waitress esté corriendo en el puerto 8080.
 -   **Error de autenticación con Jira**: Verifica que `JIRA_BASE_URL`, `JIRA_EMAIL` y `JIRA_API_TOKEN` en tu `.env` sean correctos.
+-   **Errores al iniciar el bot**: Asegúrate de tener todas las dependencias instaladas (`pip install -r requirements.txt`).
 
 ## 🔒 Seguridad
 
