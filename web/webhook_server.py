@@ -2,9 +2,8 @@ import os
 import asyncio
 from flask import Flask, request, jsonify
 from datetime import datetime
-import discord # Necesario para type hinting (discord.Client)
+import discord
 
-# --- Configuración del Canal (cargada desde el entorno) ---
 DISCORD_CHANNEL_ID_STR = os.getenv("DISCORD_CHANNEL_ID")
 DISCORD_CHANNEL_ID = 0
 if DISCORD_CHANNEL_ID_STR:
@@ -15,41 +14,32 @@ if DISCORD_CHANNEL_ID_STR:
 else:
     print("Error: DISCORD_CHANNEL_ID no está configurado en .env")
 
-# --- Cargar la URL base de Jira ---
 JIRA_BASE_URL = os.getenv("JIRA_BASE_URL")
 if not JIRA_BASE_URL:
     print("Advertencia: JIRA_BASE_URL no está configurado. Los enlaces en webhooks no funcionarán.")
 
 
 def create_webhook_app(bot: discord.Client):
-    """
-    Crea y configura la aplicación Flask, inyectando el cliente del bot.
-    """
+    """Crea y configura la aplicación Flask, inyectando el cliente del bot."""
     app = Flask(__name__)
     
     app.bot_client = bot
 
-    # --- Función para enviar notificaciones (Portado de BotJira.py) ---
     async def send_discord_notification(event_type, ticket_key, details=None, is_subtask=False):
+        """Envía notificaciones de Jira al canal de Discord configurado."""
         if not DISCORD_CHANNEL_ID:
             print("Error al notificar: DISCORD_CHANNEL_ID no es válido.")
             return
 
         channel = app.bot_client.get_channel(DISCORD_CHANNEL_ID)
         if channel:
-            
-            # --- Determinar la etiqueta ---
             label = "Subtarea" if is_subtask else "Actividad"
-
-            # --- Crear el enlace del ticket ---
-            ticket_link = ticket_key # Fallback si la URL base no está
+            ticket_link = ticket_key
+            
             if JIRA_BASE_URL:
-                # Formato Markdown: [BTS-12](https://jira.dominio.com/browse/BTS-12)
                 ticket_link = f"[{ticket_key}]({JIRA_BASE_URL}/browse/{ticket_key})"
 
             try:
-                # --- Usamos {label} en lugar de "Ticket" ---
-                
                 if event_type == "created":
                     await channel.send(f"━━━━━━━━━━━━━━━━━━━━━━━━\n🆕 **Nueva {label.lower()} creada en Jira** 🆕\n**{label}:** {ticket_link}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
                 elif event_type == "updated":
@@ -72,23 +62,21 @@ def create_webhook_app(bot: discord.Client):
                     await channel.send(
                         f"━━━━━━━━━━━━━━━━━━━━━━━━\n📎 **Archivo adjunto añadido en {label.lower()} de Jira** 📎\n**{label}:** {ticket_link}\n{details}\n━━━━━━━━━━━━━━━━━━━━━━━━")
                 else:
-                    # Fallback para eventos no manejados explícitamente
                     await channel.send(f"🔔 **Evento de Jira ({event_type})**\n**{label}:** {ticket_link}\n{details}")
             except Exception as e:
                 print(f"Error al enviar mensaje a Discord: {e}")
         else:
             print(f"Error: No se pudo encontrar el canal con ID {DISCORD_CHANNEL_ID}")
 
-    # --- Ruta para recibir notificaciones (Portado de BotJira.py) ---
     @app.route("/webhook", methods=["POST"])
     def jira_webhook():
+        """Endpoint para recibir webhooks de Jira."""
         try:
             print("✅ Webhook recibido desde Jira")
             data = request.json
 
             valid_loop = app.bot_client.loop
 
-            # Extraer información relevante del evento
             event_type = data.get("webhookEvent")
             issue_data = data.get("issue", {})
             ticket_key = issue_data.get("key")
@@ -97,18 +85,14 @@ def create_webhook_app(bot: discord.Client):
                 print("Webhook ignorado (sin clave de issue)")
                 return jsonify({"status": "ignored", "message": "No issue key found"}), 200
 
-            # --- IGNORAR  'BORRADO' DE SUBTAREAS ---
             is_subtask = issue_data.get("fields", {}).get("issuetype", {}).get("subtask", False)
             
-            # Comprobamos si es una subtarea Y el evento es 'borrado'
             if is_subtask and event_type == "issue_deleted":
                 print(f"Webhook ignorado (Evento 'issue_deleted' de subtarea: {ticket_key})")
                 return jsonify({"status": "ignored", "reason": "Ignoring delete events for sub-tasks"}), 200
             
-            # Este es el usuario que PROVOCÓ el evento (ej. movió el ticket)
             user_name = data.get("user", {}).get("displayName", "Usuario desconocido")
 
-            # --- Procesar eventos de comentarios ---
             if "comment_created" in event_type or "comment_updated" in event_type:
                 comment = data.get("comment", {})
                 comment_text = "Sin contenido"
@@ -129,7 +113,6 @@ def create_webhook_app(bot: discord.Client):
                 else:
                     comment_text = comment.get("body", "Sin contenido")
 
-                # Usamos 'comment_author' en lugar de 'user_name'
                 details = f"**Comentado por:** {comment_author}\n**Comentario:** {comment_text}"
                 
                 asyncio.run_coroutine_threadsafe(
@@ -138,7 +121,6 @@ def create_webhook_app(bot: discord.Client):
                 )
                 return jsonify({"status": "success"}), 200
 
-            # --- Procesar eventos de actualización de tickets ---
             if "issue_updated" in event_type:
                 changes = data.get("changelog", {}).get("items", [])
                 if not changes:
@@ -175,7 +157,6 @@ def create_webhook_app(bot: discord.Client):
 
                 return jsonify({"status": "success"}), 200
 
-            # --- Muestra información cuando un ticket se crea ---
             if "issue_created" in event_type:
                 issue = data.get("issue", {})
                 fields = issue.get("fields", {})
@@ -198,7 +179,6 @@ def create_webhook_app(bot: discord.Client):
                 )
                 return jsonify({"status": "success"}), 200
 
-            # --- Muestra información cuando se borra un ticket ---
             if "issue_deleted" in event_type:
                 usuario = data.get("user", {}).get("displayName", "Usuario desconocido")
                 detalles = f"**Eliminado por:** {usuario}"
