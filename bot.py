@@ -3,7 +3,6 @@ import asyncio
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
-from web.webhook_server import create_webhook_app
 import waitress
 
 load_dotenv()
@@ -11,6 +10,7 @@ load_dotenv()
 from web.webhook_server import create_webhook_app
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+PORT = int(os.getenv("PORT", 8080))
 if not DISCORD_TOKEN:
     print("Error: DISCORD_TOKEN no encontrado. Asegúrate de tener un .env válido.")
     exit()
@@ -55,7 +55,7 @@ async def run_flask_app():
     try:
         await bot.loop.run_in_executor(
             None, 
-            lambda: waitress.serve(flask_app, host='0.0.0.0', port=8080)
+            lambda: waitress.serve(flask_app, host='0.0.0.0', port=PORT)
         )
     except Exception as e:
         print(f"Error al iniciar el servidor Flask: {e}")

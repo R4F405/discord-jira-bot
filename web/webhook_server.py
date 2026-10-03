@@ -68,6 +68,11 @@ def create_webhook_app(bot: discord.Client):
         else:
             print(f"Error: No se pudo encontrar el canal con ID {DISCORD_CHANNEL_ID}")
 
+    @app.route("/health", methods=["GET"])
+    def health():
+        """Endpoint de salud usado por Docker/Coolify."""
+        return jsonify({"status": "ok"}), 200
+
     @app.route("/webhook", methods=["POST"])
     def jira_webhook():
         """Endpoint para recibir webhooks de Jira."""

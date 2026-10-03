@@ -148,7 +148,31 @@ Para pruebas locales, puedes usar [ngrok](https://ngrok.com/download) para expon
 
 **Nota**: Cada vez que reinicies ngrok, la URL cambiará, por lo que deberás actualizarla en Jira.
 
-## 🚀 Despliegue en Producción
+## 🐳 Despliegue con Coolify (Docker)
+
+El repositorio incluye un `Dockerfile` listo para producción (Python 3.12 slim, usuario no-root, logs sin buffer y `HEALTHCHECK` sobre `/health`).
+
+1. En Coolify: **+ New Resource → Private/Public Repository** y selecciona este repositorio y la rama `main`.
+2. **Build Pack**: `Dockerfile`.
+3. **Ports Exposes**: `8080`.
+4. **Domains**: asigna un dominio (ej. `https://jira-bot.tu-dominio.com`). Coolify (Traefik) genera el certificado HTTPS automáticamente.
+5. **Environment Variables**: añade las mismas variables que en `.env` (no subas el `.env` al repositorio):
+   - `DISCORD_TOKEN`
+   - `JIRA_BASE_URL`
+   - `JIRA_EMAIL`
+   - `JIRA_API_TOKEN`
+   - `DISCORD_CHANNEL_ID`
+6. **Deploy**. En los logs deberías ver que el bot se conecta a Discord y que el servidor de webhooks arranca en el puerto 8080.
+7. Actualiza el webhook en Jira (Configuración del sistema → WebHooks) con la nueva URL: `https://jira-bot.tu-dominio.com/webhook`.
+
+**Comprobación**: `curl https://jira-bot.tu-dominio.com/health` debe devolver `200`.
+
+**Notas**:
+- El puerto se puede cambiar con la variable `PORT` (por defecto `8080`). Si la cambias, actualiza también *Ports Exposes*.
+- El bot no guarda estado en disco, así que no necesita volúmenes persistentes.
+- Activa **Auto Deploy** en Coolify para redesplegar en cada push a `main`.
+
+## 🚀 Despliegue en Producción (manual, sin Docker)
 
 El bot utiliza **Waitress** como servidor WSGI de producción, lo que proporciona mejor rendimiento y estabilidad que el servidor de desarrollo de Flask.
 
