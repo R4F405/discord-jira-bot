@@ -1,5 +1,7 @@
 import os
+import sys
 import asyncio
+import threading
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
@@ -50,33 +52,34 @@ async def setup_hook():
 
 bot.setup_hook = setup_hook
 
-async def run_flask_app():
-    """Ejecuta Flask en el executor de asyncio para no bloquear el hilo principal."""
+def run_flask_app():
+    """Ejecuta el servidor de webhooks (Waitress) en un hilo en segundo plano."""
     try:
-        await bot.loop.run_in_executor(
-            None, 
-            lambda: waitress.serve(flask_app, host='0.0.0.0', port=PORT)
-        )
+        waitress.serve(flask_app, host='0.0.0.0', port=PORT)
     except Exception as e:
         print(f"Error al iniciar el servidor Flask: {e}")
 
 async def main():
     """Función principal para arrancar el bot y el servidor web."""
-    if not DISCORD_TOKEN:
-        print("El token de Discord no está configurado. Saliendo.")
-        return
-        
+    # Hilo daemon: si el bot de Discord se cae, el proceso termina y el
+    # contenedor se reinicia en vez de quedarse vivo solo con el servidor web.
+    threading.Thread(target=run_flask_app, daemon=True).start()
+
     try:
-        await asyncio.gather(
-            bot.start(DISCORD_TOKEN),
-            run_flask_app()
-        )
-    except KeyboardInterrupt:
-        print("\nCerrando bot...")
+        await bot.start(DISCORD_TOKEN)
+    except Exception as e:
+        print(f"❌ Error en la conexión con Discord: {type(e).__name__}: {e}")
+        raise
     finally:
         if not bot.is_closed():
             await bot.close()
         print("Bot desconectado. Saliendo.")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    discord.utils.setup_logging()
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\nCerrando bot...")
+    except Exception:
+        sys.exit(1)
